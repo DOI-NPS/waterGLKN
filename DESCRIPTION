@@ -1,0 +1,34 @@
+Package: waterGLKN
+Type: Package
+Title: Package for importing, querying, summarizing and visualizing GLKN water data
+Version: 0.1.1
+Authors@R: c(person("Kate", "Miller", role = c("aut", "cre"), email = "kathryn_miller@nps.gov",
+    comment = c(ORCID = "0000-0001-8823-6373")),
+             person('Rick', 'Damstra', role = 'aut'),
+             person('Cyrus', 'Hester', role = 'aut'))
+Description: This package contains functions that import the GLKN water data package 
+    downloaded from IRMA.NPS.GOV to perform routine queries, data summaries and  
+    visualizations. 
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+URL: https://github.com/doi-nps/waterGLKN
+BugReports: https://github.com/doi-nps/waterGLKN/issues
+RoxygenNote: 7.3.3
+Depends: 
+    R (>= 4.0)
+Collate: 
+    'getLocations.R'
+    'getResults.R'
+    'importData.R'
+    'theme_WQ.R'
+    'plotLakeProfile.R'
+    'plotScatterPlot.R'
+    'plotTrend.R'
+    'plotWaterBands.R'
+    'sumEvents.R'
+Imports: 
+    dplyr,
+    ggplot2,
+    purrr,
+    tidyr

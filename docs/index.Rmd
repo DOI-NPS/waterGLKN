@@ -1,0 +1,551 @@
+---
+output: html_document
+title: "Using waterGLKN R pkg." 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(width = 10)
+```
+
+```{css echo = FALSE}
+.indent {
+margin-left: 25px;
+font-size: 14px;
+}
+
+.indent2 {
+margin-left: 50px;
+font-size: 12px;
+}
+
+.drop{
+  font-family: "Arial",Arial,sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  padding:0px 0px 0px 0px;
+  margin:0px 0px 0px 0px;
+}
+
+.fxn{
+  color:#1942B5;
+  font-size:14px;
+  font-weight: bold;
+}
+
+.title{
+ display:none;
+}
+/*
+h4{
+  color:#1942B5;
+}
+*/
+```
+
+```{r echo = F, include = F}
+print_head <- function(df){
+  knitr::kable(df[1:6,]) |> #, table.attr = "style='width:60%;'") |> 
+    kableExtra::kable_classic(full_width = F, font_size = 12, 
+                              bootstrap_options = c("condensed"))
+}
+library(tidyverse)
+park = 'all';site = 'all'; site_type = 'all'; years = 2007:2023; months = 1:12; output = 'short'
+parameter = c("ANC", "NH3", "pH", "Temp_C", "SDepth_m", "Discharge_csf", "PenetrationRatio");
+... = NULL; smooth = F; layers = c("points", "lines"); threshold = T; legend_position = 'bottom'; span = 0.6
+```
+
+## Using the waterGLKN R package {.tabset .tabset-pills}
+
+### Getting started {.tabset}
+
+#### Installation
+<h4><b>Step 1.</b> Install R, RStudio, and RTools in Company Portal</h4>
+<h4><b>Step 2.</b> Install pak package in R:</h4>
+```{r, eval = F}
+install.packages('pak')
+```
+<h4><b>Step 3.</b> Install waterGLKN from github</h4>
+Note that whenever the `waterGLKN` package is updated, you can rerun this code to install the latest version.
+```{r, eval = F}
+library(pak)
+pkg_install("doi-nps/waterGLKN")
+```
+
+Whenever the `waterGLKN` package is updated, you can rerun the code below to install the latest version.
+```{r, eval = F}
+pak::pkg_install("doi-nps/waterGLKN")
+```
+
+<h4><b>Step 4.</b> Load waterGLKN R package</h4>
+```{r}
+library(waterGLKN)
+```
+<h4><b>Step 5.</b> Import data</h4>
+Note that R is not able to connect to files on Sharepoint or MS Teams (b/c Teams also stores all files on Sharepoint). That means you need to store data package files on your local machine or on a server. The default option for importing data will add the data package views (i.e., flatfiles) to an environment called GLKN_WQ to your Environment work space (i.e. Environment tab in top right panel). If you would rather import each individual view into your R session, specify with the new_env argument (e.g., `importData(new_env = F)`).
+
+```{r echo = F, results = 'hide', include = F}
+river_zip = ("../data/records-2318770.zip")
+lake_zip = ("../data/records-2309514.zip")
+try(importData(type = 'zip', filepath = c(river_zip, lake_zip)))
+try(importData(type = 'zip', filepath = c("records-2318770.zip", "records-2309514.zip")))
+```
+
+You can download GLKN water packages from DataStore using the `NPSutils` package, or you can go to DataStore on IRMA and download the data packages. Code to download via `NPSutils` is below. Once the data packages are downloaded on your computer, you can run the `importData()` function like above.
+
+```{r eval = F, include = T}
+# Download lakes and rivers data package from DataStore
+pak::pkg_install("doi-nps/NPSutils") # might take a few tries to install
+NPSutils::get_data_packages(c("2318770", "2309514"))
+```
+
+<span style='color:#1942B5;'><b>Option 1.</b> Import latest Rivers data package by specifying the folder where the unzipped csvs live.</span>
+```{r, eval = F, include = T}
+importData(type = 'csv', filepath = "./data/2318770") # update filepath to match your computer
+```
+
+<span style='color:#1942B5;'><b>Option 2.</b> Import latest Lakes data package by specifying the folder where the unzipped csvs live.</span>
+```{r eval = F, include = T}
+importData(type = 'csv', filepath = "./data/2309514") # update filepath to match your computer
+```
+
+<span style='color:#1942B5;'><b>Option 3.</b> Import both Rivers and Lakes data packages using a zipped file of each data package.</span>
+By importing both simultaneously, each of the views (e.g. Locations, Results, etc.) are row bound to include both rivers and lakes data in one view. Note that if you import both the rivers and lakes data in the same function call, columns not in common between the two datasets will not be included (e.g., Primary_Aquifer and Local_Aquifer in Rivers, Aquifer_Name in Lake DP).
+```{r eval = F, include = T}
+river_zip = ("../data/records-2318770.zip")
+lake_zip = ("../data/records-2309514.zip")
+importData(type = 'zip', filepath = c(river_zip, lake_zip))
+```
+<br>
+<h4><b>Step 6.</b> Play with the data </h4>
+The functions in the `waterGLKN` package are designed to work with the views, and are the best way to interact with the data to query by park, site, site type, year, parameter, etc. However, if you want to view the raw data, and you imported the data into the GLKN_WQ environment, you can access them with the code below:
+```{r eval = F}
+# See list of the views
+names(GLKN_WQ)
+
+# View one of the views
+View(GLKN_WQ$Results)
+
+# Assign a view to a data frame named res in R. Interact with res the way you would work with any normal data frame in R. 
+res <- GLKN_WQ$Results
+
+```
+
+If you want to use the `print_head()` function that shows output in the markdown, run the code below. This makes the results print cleaner in the markdown report. For your purposes, you can just run: `head(dataframe)`.
+```{r}
+print_head <- function(df){
+  nrows <- min(6, nrow(df))
+  knitr::kable(df[1:nrows,]) |>  
+    kableExtra::kable_classic(full_width = F, font_size = 12, 
+                              bootstrap_options = c("condensed"))
+}
+
+```
+#### Getting help
+<h4><b>Getting (and improving) help</b></h4>
+The functions in `waterGLKN` have help documentation like any R package. To view the help, you can go to the Packages tab and click on `waterGLKN` (see below). That will show you all the functions in the package. Clicking on individual functions will take you to the help documentation for that function. 
+```{r echo = F, out.width = 500, fig.align = 'center'}
+knitr::include_graphics("./www/finding_R_package.jpg")
+```
+
+<p class = 'fxn'>You can also see the help of a function by running, for example: </p>
+```{r, eval = F}
+?importData
+```
+
+<p class = 'fxn'>If `waterGLKN` isn't loaded yet, you'd run: </p>
+```{r, eval = F}
+?waterGLKN::importData
+```
+
+Each function's help includes a Description, Usage (i.e. function arguments and their defaults), Argument options/definitions, and several examples showing how the function can be used. 
+
+<b><span style='color:red;'>This is where you come in! If you notice typos or can think of better descriptions, examples, error messages, etc., please send them my way!</b></span> After we're more comfortable with R packages and get versed on GitHub, you'll be able to make those changes directly in the package. For now, you can just send me your suggestions and I'll make the changes.
+
+Finally, if you ever want to peak under the hood at the function, you can view it several ways. 
+<ol>
+<li>Keep F2 key pressed and click on the function name in R. This trick works for many but not all functions in R.</li>
+<li>View code in the <a href="https://github.com/doi-nps/waterGLKN/tree/main">GitHub doi-nps/waterGLKN repo</a>. The functions are in the R folder. 
+
+### get Data functions {.tabset}
+#### getLocations() {.tabset}
+Query location-level data. This function is a good building block for other functions, but may be less helpful on its own. Though, one helpful use of this function is to get the site codes for a given park or site.
+
+<p class = 'fxn'>Get location info for SACN lake sites</p>
+```{r}
+SACN_lakes <- getLocations(park = "SACN", site_type = "lake")
+print_head(SACN_lakes)
+```
+
+<p class = 'fxn'>Get site info for the Trapper's Lake in PIRO</p>
+```{r}
+PIRO2 <- getLocations(site = "PIRO_02")
+print_head(PIRO2)
+```
+
+<p class = 'fxn'>List Location_IDs and their full names for VOYA</p>
+```{r}
+voya_sites <- getLocations(park = "VOYA") |> select(Location_ID, Location_Name)
+print_head(voya_sites)
+```
+
+#### getResults()
+This function allows you to query the Results view by park, site, site type, year, month, parameter, QC type, sample type, and sample depth type. The returned data frame is long (i.e. stacked) to facilitate data summary and plotting. 
+
+<p class = 'fxn'>Get all non-QC, non-censored samples at all depths, parks, sites, and years (default), and only return important columns.</p> 
+```{r}
+res <- getResults()
+print_head(res)
+```
+</p>
+
+<p class = 'fxn'>Same as above, but return censored values.</p> 
+```{r}
+resc <- getResults(include_censored = T)
+print_head(resc)
+```
+</p>
+
+<p class = 'fxn'>Same as first example, but return QC samples too.</p> 
+```{r}
+resq <- getResults(sample_type = 'all')
+print_head(resq)
+```
+</p>
+
+<p class = 'fxn'>Get Sonde parameters for all sites and non-QAQC events in ISRO in 2023.</p> 
+Note that `QC_type = "VS"` is the default for this function, which returns only non-QAQC events. Note also the use of named objects for the arguments. This allows you to set them at the top of a script, rather than having to type them out repeatedly. You can then change them in 1 place (e.g., update the year to 2024) and rerun the code. 
+```{r}
+sonde_params <- c("DO_mgL", "DOsat_pct", "pH", "SpecCond_uScm", "TempWater_C")
+isro_sonde <- getResults(park = "ISRO", years = 2023, parameter = sonde_params)
+print_head(isro_sonde) 
+```
+
+<p class = 'fxn'>Get surface-only measurements for pH in SACN, all years.</p>
+```{r}
+pH_SACN <- getResults(park = "SACN", parameter = "pH", sample_depth = 'surface')
+```
+
+<p class = 'fxn'>Get censored and non-censored NO2+NO3 data for SLBE in all years. Note that the censored column is TRUE if the value is censored, and FALSE if the value is real.</p>
+```{r}
+slbecens <- getResults(park = "SLBE", param = "NO2+NO3_ugL", include_censored = TRUE)
+print_head(slbecens) 
+```
+
+<p class = 'fxn'>Get Secchi depths for all sites in ISRO and VOYA for all years.</p>
+```{r}
+secchi <- getResults(park = c("ISRO", "VOYA"), parameter = "Secchi_m")
+print_head(secchi)
+```
+
+### Plotting Functions {.tabset}
+#### plotLakeProfile()
+This function produces a heatmap in 1-m bins. You can filter on park, site, year, month, and parameter. You can only specify one parameter at a time, but see example for combining plots. If multiple sites or years are selected, plots will be faceted on those factors. Keep options limited for best plotting. 
+
+Note that occasionally profiles skip a bin, which show up as white sections in the plots. If you specify a lake x year x parameter combination that doesn't exist (e.g., a year a lake isn't sampled), the function will return an error message instead of an empty plot.
+
+The width of the profiles take into account the number of days between sampling events. For the first and last months (e.g. June and August for ISRO), the left/right side of the profiles are padded by 14 days. Otherwise, profile widths are centered on the sample day with the left side representing half the number of days between that visit and the previous visit and the right side representing half the number of days between that visit and the following visit. Black lines are the thermocline, as calculated by `rLakeAnalyzer`. Note that you must install the `rLakeAnalyzer` package to use that feature. If you try to plot the thermocline (default) and don't have `rLakeAnalyzer` installed, an error message will tell you to install it.  
+
+There are several arguments to customize plots. 
+<ul>
+<li>Choose whether to plot the theromocline as points on each profile via `plot_thermocline = TRUE` (default). The thermocline is calculated by `rLakeAnalyzer`, and is the depth at which the largest change in temperature occurs in the sampled water column. If no thermocline is detected, as defined by `rLakeAnalyzer::thermo.depth()`, nothing is plotted.</li>
+<li>Choose whether to include only active sites (default) or all sites that have been monitored via `active`. </li>
+<li>Add gridlines on the y, x or both axes.</li>
+<li>Choose palette. Current enabled themes are 'viridis' (yellow - green - blue), and built in continuous color patterns in RColorBrewer. If you prefer other palettes, I can add those too. The only thing I'm trying to avoid is creating the palette manually, since number 1-m bins varies by site and across years. More info on built in ggplot scales can be found here: <a href="https://ggplot2-book.org/scales-colour">https://ggplot2-book.org/scales-colour</a>. </li>
+<li>Choose position of legend via `legend_position`. If you don't want to show the legend, `legend_position = 'none'`.
+<li>Include Location_ID as plot title (title = TRUE). Only enabled when 1 site is selected. Otherwise site names will be in the facets. Note that for more meaningful site names, the data packages will need a column with abbreviated names. Many of the river sites are too long to consider using as a title.
+</ul>
+
+<details><summary = 'drop'>Continuous RColorBrewer palettes are below. Note that there are only as many colors as shown. </summary>
+```{r }
+RColorBrewer::display.brewer.all(type = 'div')
+RColorBrewer::display.brewer.all(type = 'seq')
+
+```
+</details><br>
+
+<details open><summary class='drop'>Simple plots</summary>
+<p class = 'fxn'>Plot water temperature for ISRO_07 for years 2007 - 2023 with thermocline plotted as black lines. </p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(isro7)}
+isro7 <- plotLakeProfile(site = "ISRO_07", parameter = "TempWater_C", years = 2007:2023)
+isro7
+```
+
+<p class = 'fxn'>Plot water temperature for all PIRO lakes sampled in 2023, with fixed Y axis range.</p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(piroC)}
+piroC <- plotLakeProfile(park = "PIRO", parameter = "TempWater_C", years = 2023, palette = "Spectral")
+piroC
+```
+
+<p class = 'fxn'>Plot water temperature for all PIRO lakes sampled in 2023, with varying Y axis range.</p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(piroCfy)}
+piroCfy <- 
+plotLakeProfile(park = "PIRO", parameter = "TempWater_C", years = 2023, palette = "Spectral",
+                facet_scales = "free_y")
+piroCfy
+```
+
+<p class = 'fxn'>Plot temperature for VOYA_01 all years with thermocline plotted as black lines.</p>
+```{r message = FALSE, warning = F,fig.alt = get_alt_text(voya1)}
+voya1 <- plotLakeProfile(site = "VOYA_01", parameter = "TempWater_C")
+voya1
+```
+
+<p class = 'fxn'>Plot Specific Conductance for SLBE_01 all years without theromocline or plot title</p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(slbe1)}
+slbe1 <- plotLakeProfile(site = "SLBE_01", parameter = "SpecCond_uScm", plot_thermocline = F, plot_title = F)
+slbe1
+```
+<p class = 'fxn'>Plot water temp using Red-Yellow-Blue palette </p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(piro1C)}
+piro1C <- 
+plotLakeProfile(site = "PIRO_01", parameter = "TempWater_C", palette = "RdYlBu") # PIRO has more months
+piro1C
+```
+
+<p class = 'fxn'>Plot DO for all sites in PIRO sampled in 2023 with mako palette</p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(pirodo)}
+pirodo <- 
+plotLakeProfile(park = "PIRO", years = 2023, parameter = "DOsat_pct", palette = "mako")
+pirodo
+```
+
+<p class = 'fxn'>Plot temp for Lake St. Croix Sites in 2023</p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(sacn_ph)}
+lkst <- c("SACN_STCR_20.0", "SACN_STCR_15.8", "SACN_STCR_2.0")
+sacn_ph <- plotLakeProfile(site = lkst, parameter = "pH", years = 2023)
+sacn_ph
+```
+
+</details>
+<br>
+
+<details open><summary class='drop'>Combining plots</summary>
+<p class = 'fxn'>Combine plots for temp, DO, pH, and conductance in Lake St. Croix 15.8 for 2023 using the `cowplot` package.</p>
+To minimize typing, I define the parameters I wanted at the beginning. This allows you to adjust the parameters once (i.e., change site), and run through the rest of the code without having to edit it.
+
+The `cowplot` package must be installed to use this code. Install the package via `install.packages('cowplot')`. There are other packages to combine plots, including `grid` and `gridExtra`, and the function `ggarrage()` in `ggpubr`. I tend to start with cowplot, because it's easy to use and has a great <a href="https://wilkelab.org/cowplot/">help page</a>. If I really need to customize a plot (like custom spacing for each plot), then I use `grid/gridExtra`, which allows for more customization, but is a bit harder to work with.  
+```{r message = FALSE, warning = FALSE, fig.alt = paste0("Plots in order of appearance ", get_alt_text(tplot), " ", get_alt_text(doplot), " ", get_alt_text(pHplot), " ", get_alt_text(cnplot))}
+library(cowplot)
+sitecode = "SACN_STCR_15.8"
+year = 2023
+depth = 'elev'
+
+tplot <- plotLakeProfile(site = sitecode, parameter = "TempWater_C", years = year, 
+                         plot_title = F)
+
+doplot <- plotLakeProfile(site = sitecode, parameter = "DOsat_pct", years = year, 
+                          color_rev = T, plot_title = F)
+
+pHplot <- plotLakeProfile(site = sitecode, parameter = "pH", years = year, 
+                          palette = "RdYlBu", color_rev = T, plot_title = F)
+
+cnplot <- plotLakeProfile(site = sitecode, parameter = "SpecCond_uScm", years = year, 
+                          palette = 'RdBu', plot_title = F)
+
+# Default settings
+plot_grid(tplot, doplot, pHplot, cnplot)
+```
+
+</details>
+
+
+#### plotScatterPlot()
+This function produces points or loess smoothed lines of 2 variables, filtered on park, site, year, month, and 2 parameters. Works best with Sonde and lab chemistry data, but can also plot Secchi depth and other parameters. By default, only surface measurements are included, although Secchi depth ignores that. To include all sample depths, specify `sample_depth = 'all'`. If multiple sites are specified, they will be plotted on the same figure, unless facet_site = T. Note that if you specify a site and parameter combination that doesn't exist, the function will return an error message instead of an empty plot. Censored values are not permitted in this function.
+
+<p class = 'fxn'>Plot Temp vs DO surface measurements (default) for VOYA all years on same figure</p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(voya_scat)}
+voya_scat <- 
+plotScatterPlot(park = "VOYA", parameters = c("DO_mgL", "TempWater_C"),
+  palette = 'viridis', facet_site = F, legend_position = "bottom")
+
+voya_scat
+```
+
+<p class = 'fxn'>Plot Temp vs DO surface measurements for VOYA all years on separate figures and same color</p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(voya_scat2)}
+voya_scat2 <- 
+plotScatterPlot(park = "VOYA", parameters = c("DO_mgL", "TempWater_C"),
+  palette = 'dimgrey', facet_site = T, legend_position = "none")
+voya_scat2
+```
+
+<p class = 'fxn'>Plot Secchi depth vs. surface ChlA in PIRO 1-4 </p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(piro_scat4)}
+piro_scat4 <- 
+plotScatterPlot(site = c("PIRO_01", "PIRO_02", "PIRO_03", "PIRO_04"), 
+                parameters = c("Secchi_m", "ChlA_ugL"),
+  span = 0.9, facet_site = F, legend_position = 'bottom', 
+  palette = c("red", "orange", "purple4", "blue"))
+piro_scat4
+```
+
+<p class = 'fxn'>Same as above, but including linear instead of smoothed line </p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(piro_scat4)}
+plotScatterPlot(site = c("PIRO_01", "PIRO_02", "PIRO_03", "PIRO_04"), 
+                parameters = c("Secchi_m", "ChlA_ugL"),
+  facet_site = F, legend_position = 'bottom', 
+  palette = c("red", "orange", "purple4", "blue"),
+  layers = c('points', 'line'))
+```
+
+<p class = 'fxn'>Same as above, but points only </p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(piro_scat4)}
+plotScatterPlot(site = c("PIRO_01", "PIRO_02", "PIRO_03", "PIRO_04"), 
+                parameters = c("Secchi_m", "ChlA_ugL"),
+  facet_site = F, legend_position = 'bottom', 
+  palette = c("red", "orange", "purple4", "blue"),
+  layers = 'points')
+```
+
+#### plotTrend()
+This function produces a trend plot filtered on park, site, year, month, and parameter. If multiple sites are specified, they will be plotted on the same figure. If multiple parameters are specified, they will be plotted on separate figures. If smooth = T, a loess smoothed line will connect through the data. If smooth = F and layers includes "lines", then lines will connect the sample points.
+
+There are several arguments to customize plots. 
+<ul>
+<li> Choose whether to include only active sites (default) or all sites that have been monitored via `active`. </li>
+<li> Choose whether to add points, lines, or both (default) via `layers` argument. </li>
+<li> If lines are chosen as a layer, choose whether to plot a loess smoothed line (default) or a line that connects the sample points via `smooth`. </li>
+<li>[not enabled yet--] Choose whether to plot any water quality thresholds that exist via `threshold`. Upper limits are dashed. Lower limits are dotted.[--not enabled yet] </li>
+<li> Choose whether to add gridlines, either both, grid_y or grid_x. Default is none. </li>
+<li> Choose whether to plot surface (default) or all depth measurements via `sample_depth`. </li>
+<li> Choose whether to include censored values or not via `include_censored`. </li>
+<li> Choose color palette via `palette`. Default is 'viridis', but other options are magma (yellow, red, purple), plasma (brighter version of magma), turbo (rainbow), or specify a vector of colors manually. See the <a href='https://cran.r-project.org/web/packages/viridis/vignettes/intro-to-viridis.html'>intro do viridis site</a> for more info on built in color palettes. </li>
+<li> Choose position of legend via `legend_position`. If you don't want to show the legend, `legend_position = 'none'`.</li>
+<li> Additional customizations are defined in the help documentation, accessable via `?plotTrend()`</li>
+</ul>
+
+<details open><summary class='drop'>Single site; single parameter</summary>
+<p class = 'fxn'>Plot smoothed surface ChlA for ISRO_01 for all years with default settings of surface measurements, smoothed line with span = 0.3, no gridlines, and no censured points. </p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(isro_chla)}
+isro_chla <- plotTrend(site = "ISRO_01", parameter = "ChlA_ugL")
+isro_chla
+```
+
+<p class = 'fxn'>Same as above, but change palette, add x gridlines and include all sample depths, and censored points. </p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(isro_chla2)}
+isro_chla2 <- 
+plotTrend(site = "ISRO_01", parameter = "ChlA_ugL", palette = 'navyblue', gridlines = 'grid_x', 
+          sample_depth = 'all', include_censored = T, legend_position = 'right')
+isro_chla2
+```
+
+
+<p class = 'fxn'>Plot smoothed surface pH for VOYA_01 for past 10 years using default span of 0.3 and by default not including the legend. </p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(voya1_ph)}
+voya1_ph <- plotTrend(site = "VOYA_01", parameter = "pH", palette = 'dimgrey', years = 2013:2023)
+voya1_ph
+```
+<p class = 'fxn'>Plot smoothed surface pH for PIRO_02 for all years, with turbo palette, and using span of 0.75. </p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(piro2_ph)}
+piro2_ph <- 
+plotTrend(site = "PIRO_02", parameter = "pH", span = 0.75, palette = "turbo",
+          legend_position = 'bottom', facet_site = F)
+piro2_ph
+```
+
+<p class = 'fxn'>Plot smoothed surface SO4 for all VOYA_17 for all years with 0.6 span</p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(voya17_so4)}
+voya17_so4 <-
+plotTrend(site = "VOYA_17", parameter = "SO4_mgL", legend_position = "right",
+  span = 0.6, point_size = 2.5)
+
+voya17_so4
+```
+</details>
+
+<details open><summary class='drop'>Multiple sites or params</summary>
+<p class = 'fxn'>Plot smoothed surface pH for 4 lakes in ISRO over all years with 0.6 span.</p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(isro4_ph)}
+isro4_ph <- 
+plotTrend(site = c("ISRO_02", "ISRO_03", "ISRO_04", "ISRO_05"), 
+          parameter = "pH", legend_position = "right", span = 0.6)
+isro4_ph
+```
+
+<p class = 'fxn'>Plot non-smoothed surface of multiple Sonde parameters for all PIRO sites on the same figure over all years with 0.6 span. </p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(piro_3p)}
+params <- c("TempWater_C", "SpecCond_uScm", "DOsat_pct", "pH")
+piro_3p <- 
+plotTrend(park = "PIRO", parameter = params, legend_position = "right", span = 0.6, 
+          facet_site = F)
+piro_3p
+```
+
+<p class = 'fxn'>Plot smoothed Alkalinity, Nitrite + Nitrate, P and SO4 in all MORR sites for all years, including the legend, different color palette, and using span of 0.6. </p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(isro_4p)}
+isro_4p <-
+plotTrend(park = "ISRO", parameter = c('Alkalinity_mgL', "NO2+NO3_ugL", "P_ugL", "SO4_mgL"), 
+          span = 0.6, legend_position = 'bottom', palette = 'plasma', 
+          facet_site = F)
+
+isro_4p
+```
+</details>
+
+#### plotWaterBands()
+This function produces a plot that summarizes the range of historic data compared with current measurements. The function can handle most water quality parameters. Historic measurements are displayed as the min-max values that have ever previously recorded (outermost band), upper and lower 95% distribution and middle 50% distribution (inner quartiles) of values previously recorded (inner bands). The line represents the median value. 
+
+Currently you can only specify one parameter at a time, and one year comparison at a time (i.e. year_current). You can add gridlines to the plot via the gridlines argument. If multiple sites are specified, they will be faceted in the order they were specified. If `include_censored = TRUE`, censored values will be plotted as an asterisk instead of circle. 
+
+[Not yet enabled--]Values that exceed water quality thresholds (where they exist) are plotted as orange and will show an orange point in the legend. Values within WQ thresholds or for parameters without set thresholds are black. You can include threshold lines (default), or remove them, where they make the y axis range too big, via `threshold = FALSE`. [--Not yet enabled].
+
+<p class = 'fxn'>Plot pH in sites in Lake St. Croix for 2023 with gridlines on the y-axis</p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(sacn_bands)}
+lksc <- c('SACN_STCR_2.0', 'SACN_STCR_15.8', 'SACN_STCR_20.0')
+sacn_bands <- 
+plotWaterBands(site = lksc, year_curr = 2023, years_historic = 2007:2022, 
+  parameter = "pH", legend_position = 'right', gridlines = 'grid_y')
+
+sacn_bands
+```
+
+<p class = 'fxn'>Plot ChlA in sites in Lake St. Croix for 2023 including censored values, and move legend to bottom.</p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(sacn_chla)}
+sacn_chla <- 
+plotWaterBands(site = lksc, year_curr = 2023, years_historic = 2007:2022, 
+  parameter = "ChlA_ugL", legend_position = 'bottom', include_censored = T)
+
+sacn_chla
+```
+
+<p class = 'fxn'>Plot DO in SLBE_01 in 2023 and gridlines on both x and y axes</p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(slbe1)}
+slbe1 <- 
+plotWaterBands(site = "SLBE_01", year_curr = 2023, years_historic = 2007:2022,
+  parameter = "DO_mgL", legend_position = 'right', gridlines = "both")
+slbe1
+```
+
+<p class = 'fxn'>Plot Specific Conductance in ISRO 1-3 sites in 2023 </p>
+```{r message = FALSE, warning = FALSE, fig.alt = get_alt_text(isro_bands)}
+isro_sites <- c("ISRO_01", "ISRO_02", "ISRO_03")
+isro_bands <- 
+plotWaterBands(site = isro_sites, year_curr = 2023, years_historic = 2007:2022, 
+               parameter = "SpecCond_uScm", legend_position = 'bottom')
+isro_bands
+```
+
+### Summary Functions {.tabset}
+#### sumEvents()
+Summarize number of samples collected per park, site, month, and parameter. Resulting data frame show number of samples collected for each month, and whether the value is real (month) or censored (month_cens).
+
+<p class = 'fxn'>Summarize all events for ISRO for all years and active sites</p>
+```{r}
+isro_ev <- sumEvents(park = "ISRO")
+print_head(isro_ev)
+
+```
+
+<p class = 'fxn'>Summarize only lake events for SACN for all years</p>
+```{r}
+sacn_lk <- sumEvents(park = "SACN", site_type = "lake")
+print_head(sacn_lk)
+```
+
+<p class = 'fxn'>Summarize all GLKN events for 2023</p>
+```{r}
+glkn23 <- sumEvents(years = 2023)
+print_head(glkn23)
+```
+
