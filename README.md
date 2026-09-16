@@ -4,6 +4,9 @@ and provides functions to query, summarize, and visualize Great Lakes Network (G
 The R package can be installed using `pak::pkg_install('doi-nps/waterGLKN')`. Previous archived versions of this 
 R package can be found at <a href="www.github.com/katemmiller/waterGLKN"> www.github.com/katemmiller/waterGLKN</a>
 
+Note that this package was designed to work with the format of data that comes from Water Quality Exchange, and may
+work for other networks with slight tweaking.
+
 This package includes the following functions: 
 <ul>
 <li>importData: Import views from data package as a zip file or folder containing csvs. Can import multiple 
